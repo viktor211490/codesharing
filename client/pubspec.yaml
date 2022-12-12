@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   shared:
-    path: ../shared
+    path: ../server/packages/shared
   cupertino_icons: ^1.0.2
 
 dev_dependencies:
