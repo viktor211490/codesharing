@@ -8,10 +8,13 @@ environment:
 
 dependencies:
   dart_frog: ^0.3.0
+  postgres: ^2.5.2
   shared:
     path: packages/shared
+  stormberry: ^0.9.2
 
 dev_dependencies:
+  build_runner: ^2.3.3
   mocktail: ^0.3.0
   test: ^1.19.2
   very_good_analysis: ^3.1.0
