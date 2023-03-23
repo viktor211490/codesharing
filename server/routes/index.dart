@@ -1,18 +1,21 @@
 import 'dart:async';
-
+import 'dart:convert';
 import 'package:dart_frog/dart_frog.dart';
-import 'package:postgres/postgres.dart';
+import 'package:db/db.dart' as db;
 import 'package:shared/shared.dart';
 import 'package:stormberry/internals.dart';
 
 FutureOr<Response> onRequest(RequestContext context) async {
-  const user = User(email: 'someuser@mail.com', id: 'user');
   final db = context.read<Database>();
-  // final result = await connection.query('SELECT NOW()');
-  // print(result);
-  // ignore: lines_longer_than_80_chars
-  return Response(
-    body:
-        'Welcome to Dart Frog!, ${user.email}. The current time is: ${result[0][0]}',
+  final user = await db.users.queryUser(1);
+  final data = await db.query('SELECT now()');
+  print(data);
+  if (user == null) {
+    return Response(body: 'Not found', statusCode: 404);
+  }
+  final sharedUser = User.fromDb(user);
+  return Response.json(
+    body: sharedUser.toJson(),
+    // headers: {'Content-Type': 'application/json'},
   );
 }

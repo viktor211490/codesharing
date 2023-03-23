@@ -12,25 +12,25 @@ final registry = ModelRegistry({});
 abstract class UserRepository
     implements
         ModelRepository,
-        ModelRepositoryInsert<UserInsertRequest>,
+        KeyedModelRepositoryInsert<UserInsertRequest>,
         ModelRepositoryUpdate<UserUpdateRequest>,
-        ModelRepositoryDelete<String> {
+        ModelRepositoryDelete<int> {
   factory UserRepository._(Database db) = _UserRepository;
 
-  Future<User?> queryUser(String id);
+  Future<User?> queryUser(int id);
   Future<List<User>> queryUsers([QueryParams? params]);
 }
 
 class _UserRepository extends BaseRepository
     with
-        RepositoryInsertMixin<UserInsertRequest>,
+        KeyedRepositoryInsertMixin<UserInsertRequest>,
         RepositoryUpdateMixin<UserUpdateRequest>,
-        RepositoryDeleteMixin<String>
+        RepositoryDeleteMixin<int>
     implements UserRepository {
   _UserRepository(Database db) : super(db: db);
 
   @override
-  Future<User?> queryUser(String id) {
+  Future<User?> queryUser(int id) {
     return queryOne(id, UserQueryable());
   }
 
@@ -40,14 +40,17 @@ class _UserRepository extends BaseRepository
   }
 
   @override
-  Future<void> insert(Database db, List<UserInsertRequest> requests) async {
-    if (requests.isEmpty) return;
+  Future<List<int>> insert(Database db, List<UserInsertRequest> requests) async {
+    if (requests.isEmpty) return [];
+    var rows = await db.query(requests.map((r) => "SELECT nextval('users_id_seq') as \"id\"").join('\nUNION ALL\n'));
+    var autoIncrements = rows.map((r) => r.toColumnMap()).toList();
 
     await db.query(
-      'INSERT INTO "users" ( "id", "name" )\n'
-      'VALUES ${requests.map((r) => '( ${registry.encode(r.id)}, ${registry.encode(r.name)} )').join(', ')}\n'
-      'ON CONFLICT ( "id" ) DO UPDATE SET "name" = EXCLUDED."name"',
+      'INSERT INTO "users" ( "id", "name", "email" )\n'
+      'VALUES ${requests.map((r) => '( ${registry.encode(autoIncrements[requests.indexOf(r)]['id'])}, ${registry.encode(r.name)}, ${registry.encode(r.email)} )').join(', ')}\n',
     );
+
+    return autoIncrements.map<int>((m) => registry.decode(m['id'])).toList();
   }
 
   @override
@@ -55,15 +58,15 @@ class _UserRepository extends BaseRepository
     if (requests.isEmpty) return;
     await db.query(
       'UPDATE "users"\n'
-      'SET "name" = COALESCE(UPDATED."name"::text, "users"."name")\n'
-      'FROM ( VALUES ${requests.map((r) => '( ${registry.encode(r.id)}, ${registry.encode(r.name)} )').join(', ')} )\n'
-      'AS UPDATED("id", "name")\n'
+      'SET "name" = COALESCE(UPDATED."name"::text, "users"."name"), "email" = COALESCE(UPDATED."email"::text, "users"."email")\n'
+      'FROM ( VALUES ${requests.map((r) => '( ${registry.encode(r.id)}, ${registry.encode(r.name)}, ${registry.encode(r.email)} )').join(', ')} )\n'
+      'AS UPDATED("id", "name", "email")\n'
       'WHERE "users"."id" = UPDATED."id"',
     );
   }
 
   @override
-  Future<void> delete(Database db, List<String> keys) async {
+  Future<void> delete(Database db, List<int> keys) async {
     if (keys.isEmpty) return;
     await db.query(
       'DELETE FROM "users"\n'
@@ -73,23 +76,24 @@ class _UserRepository extends BaseRepository
 }
 
 class UserInsertRequest {
-  UserInsertRequest({required this.id, required this.name});
-  String id;
+  UserInsertRequest({required this.name, this.email});
   String name;
+  String? email;
 }
 
 class UserUpdateRequest {
-  UserUpdateRequest({required this.id, this.name});
-  String id;
+  UserUpdateRequest({required this.id, this.name, this.email});
+  int id;
   String? name;
+  String? email;
 }
 
-class UserQueryable extends KeyedViewQueryable<User, String> {
+class UserQueryable extends KeyedViewQueryable<User, int> {
   @override
   String get keyName => 'id';
 
   @override
-  String encodeKey(String key) => registry.encode(key);
+  String encodeKey(int key) => registry.encode(key);
 
   @override
   String get tableName => 'users_view';
@@ -98,14 +102,19 @@ class UserQueryable extends KeyedViewQueryable<User, String> {
   String get tableAlias => 'users';
 
   @override
-  User decode(TypedMap map) => UserView(id: map.get('id', registry.decode), name: map.get('name', registry.decode));
+  User decode(TypedMap map) => UserView(
+      id: map.get('id', registry.decode),
+      name: map.get('name', registry.decode),
+      email: map.getOpt('email', registry.decode));
 }
 
 class UserView implements User {
-  UserView({required this.id, required this.name});
+  UserView({required this.id, required this.name, this.email});
 
   @override
-  final String id;
+  final int id;
   @override
   final String name;
+  @override
+  final String? email;
 }

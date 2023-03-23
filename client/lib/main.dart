@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -30,12 +32,18 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late User user;
+  late User? user;
 
   @override
   void initState() {
     super.initState();
-    user = const User(id: 'Steve', email: 'steeve@mail.ru');
+    http.get(Uri.parse("http://localhost:8080")).then((response) {
+      setState(() {
+        user = User.fromJson(jsonDecode(response.body));
+      });
+    });
+
+    // user = const User(id: 'Steve', name: 'steeve@mail.ru');
   }
 
   @override
@@ -48,10 +56,12 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(
-              '${user.id}',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+            if (user == null) const CircularProgressIndicator.adaptive(),
+            if (user != null)
+              Text(
+                user!.name,
+                style: Theme.of(context).textTheme.headline4,
+              ),
           ],
         ),
       ),

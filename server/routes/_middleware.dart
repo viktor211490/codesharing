@@ -1,22 +1,14 @@
 import 'package:dart_frog/dart_frog.dart';
 import 'package:stormberry/internals.dart';
 
-// final connection = PostgreSQLConnection(
-//   'localhost',
-//   5432,
-//   'postgres',
-//   username: 'postgres',
-//   password: 'password',
-// );
-
 final db = Database(
-  host: 'localhost',
+  host: '176.119.147.235',
   port: 5432,
-  database: 'postgres',
-  user: 'posstgres',
-  password: 'password',
-  useSSL: false,
-  isUnixSocket: false,
+  database: 'codesharing',
+  user: 'dbuser',
+  password: '12321Qq!',
+  useSSL: true,
+  isUnixSocket: true,
 );
 
 Handler middleware(Handler handler) {
